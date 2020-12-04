@@ -18,27 +18,75 @@ namespace YO.Framework.Dal.UoW
 
         public bool BeginNewTransaction()
         {
-            throw new NotImplementedException();
+            try
+            {
+                _transaction = _context.Database.BeginTransaction();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!this._disposed)
+            {
+                if (disposing)
+                {
+                    _context.Dispose();
+                }
+            }
+            this._disposed = true;
         }
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         public IGenericRepository<T> GetRepository<T>() where T : class
         {
-            throw new NotImplementedException();
+            return new GenericRepository<T>(_context);
         }
 
         public bool RollBackTransaction()
         {
-            throw new NotImplementedException();
+            try
+            {
+                _transaction.Rollback();
+                _transaction = null;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
         }
 
         public int SaveChanges()
         {
-            throw new NotImplementedException();
+            var transcation = _transaction != null ? _transaction : _context.Database.BeginTransaction();
+            using (transcation)
+            {
+                try
+                {
+                    if (_context == null)
+                    {
+                        throw new ArgumentException("Context is null");
+                    }
+                    int result = _context.SaveChanges();
+                    transcation.Commit();
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _transaction.Rollback();
+
+                    throw new Exception("Error on save",ex);
+                }
+            }
         }
     }
 }
